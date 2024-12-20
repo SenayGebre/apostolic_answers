@@ -7,7 +7,22 @@
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
-include: package:flutter_lints/flutter.yaml
+# include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  plugins:
+    - custom_lint
+  exclude:
+    - build/**
+    - test/**
+    - lib/generated_plugin_registrant.dart
+    - lib/**/*.g.dart
+    - lib/**/*.freezed.dart
+  errors: 
+    avoid_print: error
+    prefer_single_quotes: error
+    directives_ordering: error
+    prefer_const_constructors: error
 
 linter:
   # The lint rules applied to this project can be customized in the
@@ -21,8 +36,88 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # avoid_print: true  # Uncomment to disable the `avoid_print` rule
+    prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+
+    # General Best Practices
+    avoid_print: true # Disallow print statements; use proper logging
+    avoid_redundant_argument_values: true # Avoid passing default arguments unnecessarily
+    avoid_classes_with_only_static_members: true # Prevent classes with only static members
+    avoid_empty_else: true # Warn about empty else blocks
+    avoid_escaping_inner_quotes: true # Avoid unnecessary escaping of quotes
+    avoid_field_initializers_in_const_classes: true # Avoid field initializers in const classes
+    avoid_function_literals_in_foreach_calls: true # Use method references instead of function literals
+    avoid_null_checks_in_equality_operators: true # Prevent null checks in equality operators
+    avoid_positional_boolean_parameters: true # Use named parameters for readability
+    lines_longer_than_80_chars: true
+    directives_ordering: true
+    prefer_expression_function_bodies: true
+    unnecessary_lambdas: true
+    parameter_assignments: true
+    avoid_unnecessary_containers: true
+    avoid_web_libraries_in_flutter: true
+    no_logic_in_create_state: true
+    sized_box_for_whitespace: true
+    sort_child_properties_last: true
+    use_build_context_synchronously: true
+    use_full_hex_values_for_flutter_colors: true
+    use_key_in_widget_constructors: true
+
+    # Style and Formatting
+    prefer_const_constructors: true # Use const constructors when possible
+    prefer_const_constructors_in_immutables: true # Const for immutable classes
+    prefer_const_declarations: true # Use const for variables that don't change
+    prefer_final_fields: true # Prefer final for class fields
+    prefer_final_in_for_each: true # Use final in for-each variables
+    sort_constructors_first: true # Constructors should appear first in classes
+    prefer_relative_imports: true # Use relative imports instead of package imports within a module
+
+    # Null Safety and Type Checking
+    always_specify_types: true # Explicitly specify types for variables, functions, etc.
+    annotate_overrides: true # Always annotate overridden methods
+    prefer_void_to_null: true # Use void instead of null in return types
+
+    # Code Optimization
+    unnecessary_null_checks: true # Remove unnecessary null checks
+    prefer_iterable_whereType: true # Prefer whereType for filtering by type
+    unnecessary_this: true # Avoid using `this.` when it's unnecessary
+    prefer_is_empty: true # Use `isEmpty` instead of `length == 0`
+    prefer_is_not_empty: true # Use `isNotEmpty` instead of `length > 0`
+
+    # Error Prevention
+    avoid_dynamic_calls: true # Prevent dynamic calls
+    avoid_returning_null_for_future: true # Avoid returning null in Futures
+    avoid_setters_without_getters: true # Avoid having setters without corresponding getters
+    always_declare_return_types: true # Explicit return types for all methods
+    no_duplicate_case_values: true # Disallow duplicate case values in switch statements
+
+    # Clean Architecture Rules
+    avoid_catches_without_on_clauses: true # Catch specific exceptions
+    type_annotate_public_apis: true # Type annotations for all public APIs
+
+    # Async and Streams
+    unawaited_futures: true # Warn on unawaited Futures
+    avoid_void_async: true # Avoid async functions that return void
+    use_rethrow_when_possible: true # Use rethrow instead of manually throwing the exception
+    prefer_final_parameters: true # Use final for parameters in methods
+
+    # Dependency Management
+    prefer_const_literals_to_create_immutables: true # Use const for immutable collections
+    avoid_relative_lib_imports: true # Avoid relative imports from lib/ folder
+
+    # Documentation
+    comment_references: true # Use proper references in comments
+  
+
+
+custom_lint:
+  rules:
+    # Enable one rule
+    - provider_parameters
+    # Disable another
+    - missing_provider_scope: true
+    
+
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
