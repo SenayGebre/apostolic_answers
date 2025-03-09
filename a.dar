@@ -1,77 +1,316 @@
-// lib/main.dart
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// lib/core/logging/logger_service.dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
-import 'package:your_app_name/app/app.dart';
-import 'package:your_app_name/core/logging/app_logger.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sentry/sentry.dart';
+import 'package:stack_trace/stack_trace.dart';
 
-void main() {
-  // Set up error handling and logging
-  WidgetsFlutterBinding.ensureInitialized();
-  AppLogger.setupLogging();
-
-  // Capture errors in Riverpod
-  final providerContainer = ProviderContainer(
-    observers: [
-      RiverpodLogger(),
-    ],
-  );
-
-  // For error reporting in release builds
-  FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
-    // Log to your error reporting service here
-    AppLogger.error(
-      'Flutter error',
-      error: details.exception,
-      stackTrace: details.stack,
-    );
-  };
-
-  runApp(
-    UncontrolledProviderScope(
-      container: providerContainer,
-      child: const BankingApp(),
-    ),
-  );
+/// Enum defining different log levels
+enum LogLevel {
+  verbose,
+  debug,
+  info,
+  warning,
+  error,
+  critical,
 }
 
-// A custom observer to log provider state changes during development
-class RiverpodLogger extends ProviderObserver {
+/// Model class representing a structured log entry
+class LogEntry {
+  final DateTime timestamp;
+  final String level;
+  final String message;
+  final String? context;
+  final String? error;
+  final String? stackTrace;
+  final Map<String, dynamic>? data;
+
+  LogEntry({
+    required this.timestamp,
+    required this.level,
+    required this.message,
+    this.context,
+    this.error,
+    this.stackTrace,
+    this.data,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'timestamp': DateFormat('yyyy-MM-dd HH:mm:ss.SSS').format(timestamp),
+      'level': level,
+      'message': message,
+      if (context != null) 'context': context,
+      if (error != null) 'error': error,
+      if (stackTrace != null) 'stackTrace': stackTrace,
+      if (data != null) 'data': data,
+    };
+  }
+
   @override
-  void didUpdateProvider(
-    ProviderBase<Object?> provider,
-    Object? previousValue,
-    Object? newValue,
-    ProviderContainer container,
-  ) {
-    if (previousValue != newValue) {
-      AppLogger.debug(
-        'Provider ${provider.name ?? provider.runtimeType} updated:\n'
-        'prev: $previousValue\n'
-        'new: $newValue',
+  String toString() {
+    return jsonEncode(toJson());
+  }
+}
+
+/// Class responsible for configuring and managing logging
+class LoggerService {
+  static final LoggerService _instance = LoggerService._internal();
+  final Logger _rootLogger = Logger.root;
+  static const String _loggerName = 'BankAppLogger';
+  String? _userIdentifier;
+  bool _initialized = false;
+  bool _isDebugMode = false;
+  bool _isSentryEnabled = false;
+  
+  // Logger instances for different components
+  final Map<String, Logger> _loggers = {};
+  
+  factory LoggerService() {
+    return _instance;
+  }
+
+  LoggerService._internal();
+
+  /// Initialize the logging service
+  Future<void> init({
+    required bool isDebugMode,
+    required bool sentryEnabled,
+    String? sentryDsn,
+    String? userIdentifier,
+    LogLevel minLogLevel = LogLevel.info,
+  }) async {
+    if (_initialized) return;
+    
+    _isDebugMode = isDebugMode;
+    _isSentryEnabled = sentryEnabled;
+    _userIdentifier = userIdentifier;
+    
+    // Configure the root logger
+    Logger.root.level = _convertLogLevel(minLogLevel);
+    
+    // Clear any existing handlers
+    Logger.root.clearListeners();
+    
+    // Add console logger
+    Logger.root.onRecord.listen(_handleLogRecord);
+    
+    // Initialize Sentry if enabled
+    if (_isSentryEnabled && sentryDsn != null) {
+      await Sentry.init(
+        (options) {
+          options.dsn = sentryDsn;
+          options.tracesSampleRate = 1.0;
+          options.environment = isDebugMode ? 'development' : 'production';
+          if (_userIdentifier != null) {
+            options.userBuilder = (user) => user.id = _userIdentifier;
+          }
+        },
+      );
+    }
+    
+    _initialized = true;
+    
+    // Log initialization message
+    final environment = isDebugMode ? 'DEBUG' : 'PRODUCTION';
+    info(
+      'Logging initialized',
+      context: 'LoggerService',
+      data: {
+        'environment': environment,
+        'sentry_enabled': _isSentryEnabled,
+        'min_log_level': minLogLevel.toString(),
+      },
+    );
+  }
+
+  /// Set the user identifier for logs
+  void setUserIdentifier(String? userId) {
+    _userIdentifier = userId;
+    if (_isSentryEnabled && userId != null) {
+      Sentry.configureScope(
+        (scope) => scope.setUser(SentryUser(id: userId)),
       );
     }
   }
 
-  @override
-  void didAddProvider(
-    ProviderBase<Object?> provider, 
-    Object? value, 
-    ProviderContainer container,
-  ) {
-    AppLogger.debug(
-      'Provider ${provider.name ?? provider.runtimeType} added with value: $value',
-    );
+  /// Get or create a logger for a specific context
+  Logger getLogger(String name) {
+    if (_loggers.containsKey(name)) {
+      return _loggers[name]!;
+    } else {
+      final logger = Logger('$_loggerName.$name');
+      _loggers[name] = logger;
+      return logger;
+    }
   }
 
-  @override
-  void didDisposeProvider(
-    ProviderBase<Object?> provider, 
-    ProviderContainer container,
-  ) {
-    AppLogger.debug(
-      'Provider ${provider.name ?? provider.runtimeType} disposed',
+  /// Convert LogLevel enum to logging.Level
+  Level _convertLogLevel(LogLevel level) {
+    switch (level) {
+      case LogLevel.verbose:
+        return Level.FINEST;
+      case LogLevel.debug:
+        return Level.FINE;
+      case LogLevel.info:
+        return Level.INFO;
+      case LogLevel.warning:
+        return Level.WARNING;
+      case LogLevel.error:
+        return Level.SEVERE;
+      case LogLevel.critical:
+        return Level.SHOUT;
+    }
+  }
+
+  /// Convert logging.Level to string representation
+  String _levelToString(Level level) {
+    if (level == Level.FINEST) return 'VERBOSE';
+    if (level == Level.FINER) return 'VERBOSE';
+    if (level == Level.FINE) return 'DEBUG';
+    if (level == Level.INFO) return 'INFO';
+    if (level == Level.WARNING) return 'WARNING';
+    if (level == Level.SEVERE) return 'ERROR';
+    if (level == Level.SHOUT) return 'CRITICAL';
+    return level.name;
+  }
+
+  /// Log record handler
+  void _handleLogRecord(LogRecord record) {
+    final logEntry = LogEntry(
+      timestamp: record.time,
+      level: _levelToString(record.level),
+      message: record.message,
+      context: record.loggerName.replaceFirst('$_loggerName.', ''),
+      error: record.error?.toString(),
+      stackTrace: record.stackTrace?.toString(),
     );
+
+    // Console logging
+    if (_isDebugMode) {
+      final logString = '${logEntry.timestamp} | ${logEntry.level} | '
+          '${logEntry.context}: ${logEntry.message}';
+      
+      switch (record.level.value) {
+        case Level.FINEST:
+        case Level.FINER:
+        case Level.FINE:
+        case Level.CONFIG:
+        case Level.INFO:
+          debugPrint(logString);
+          break;
+        case Level.WARNING:
+          debugPrint('\x1B[33m$logString\x1B[0m'); // Yellow
+          break;
+        case Level.SEVERE:
+        case Level.SHOUT:
+          debugPrint('\x1B[31m$logString\x1B[0m'); // Red
+          break;
+      }
+    }
+
+    // File logging in debug mode
+    if (_isDebugMode) {
+      _writeToLogFile(logEntry);
+    }
+
+    // Send to Sentry if error or critical and Sentry is enabled
+    if (_isSentryEnabled &&
+        (record.level == Level.SEVERE || record.level == Level.SHOUT)) {
+      Sentry.captureException(
+        record.error ?? record.message,
+        stackTrace: record.stackTrace != null 
+            ? Trace.parse(record.stackTrace.toString()).terse 
+            : null,
+      );
+    }
+  }
+
+  /// Write log entry to file (for debug mode)
+  Future<void> _writeToLogFile(LogEntry logEntry) async {
+    if (!kIsWeb) {
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        final file = File('${directory.path}/logs_$date.jsonl');
+        
+        await file.writeAsString(
+          '${logEntry.toString()}\n',
+          mode: FileMode.append,
+        );
+      } catch (e) {
+        debugPrint('Error writing to log file: $e');
+      }
+    }
+  }
+
+  // Log methods
+  void verbose(
+    String message, {
+    String? context,
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    final logger = context != null ? getLogger(context) : _rootLogger;
+    logger.finest(message);
+  }
+
+  void debug(
+    String message, {
+    String? context,
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    final logger = context != null ? getLogger(context) : _rootLogger;
+    logger.fine(message);
+  }
+
+  void info(
+    String message, {
+    String? context,
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    final logger = context != null ? getLogger(context) : _rootLogger;
+    logger.info(message);
+  }
+
+  void warning(
+    String message, {
+    String? context,
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    final logger = context != null ? getLogger(context) : _rootLogger;
+    logger.warning(message);
+  }
+
+  void error(
+    String message, {
+    String? context,
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    final logger = context != null ? getLogger(context) : _rootLogger;
+    logger.severe(message, error, stackTrace);
+  }
+
+  void critical(
+    String message, {
+    String? context,
+    dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? data,
+  }) {
+    final logger = context != null ? getLogger(context) : _rootLogger;
+    logger.shout(message, error, stackTrace);
   }
 }
