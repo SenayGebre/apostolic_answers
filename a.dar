@@ -1,99 +1,77 @@
-# azure-pipelines-main.yml
-trigger:
-  branches:
-    include:
-      - main
+// lib/main.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
+import 'package:your_app_name/app/app.dart';
+import 'package:your_app_name/core/logging/app_logger.dart';
 
-pool:
-  vmImage: 'ubuntu-latest'
+void main() {
+  // Set up error handling and logging
+  WidgetsFlutterBinding.ensureInitialized();
+  AppLogger.setupLogging();
 
-variables:
-  flutterVersion: '3.16.x'
-  flutterChannel: 'stable'
+  // Capture errors in Riverpod
+  final providerContainer = ProviderContainer(
+    observers: [
+      RiverpodLogger(),
+    ],
+  );
 
-stages:
-- stage: Lint
-  jobs:
-  - job: Lint
-    steps:
-    - task: FlutterInstall@0
-      displayName: 'Install Flutter'
-      inputs:
-        channel: $(flutterChannel)
-        version: $(flutterVersion)
-    
-    - script: flutter pub get
-      displayName: 'Flutter pub get'
-    
-    - script: flutter analyze --no-fatal-infos
-      displayName: 'Analyze code'
-    
-    - script: dart format --output=none --set-exit-if-changed .
-      displayName: 'Format check'
-    
-    - script: flutter pub run custom_lint
-      displayName: 'Run custom lint (Riverpod)'
+  // For error reporting in release builds
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    // Log to your error reporting service here
+    AppLogger.error(
+      'Flutter error',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
 
-- stage: Test
-  dependsOn: Lint
-  jobs:
-  - job: RunTests
-    steps:
-    - task: FlutterInstall@0
-      displayName: 'Install Flutter'
-      inputs:
-        channel: $(flutterChannel)
-        version: $(flutterVersion)
-    
-    - script: flutter pub get
-      displayName: 'Flutter pub get'
-    
-    - script: flutter test --coverage
-      displayName: 'Run unit tests with coverage'
-    
-    - task: PublishCodeCoverageResults@1
-      inputs:
-        codeCoverageTool: 'Cobertura'
-        summaryFileLocation: 'coverage/lcov.info'
-        pathToSources: 'lib/'
+  runApp(
+    UncontrolledProviderScope(
+      container: providerContainer,
+      child: const BankingApp(),
+    ),
+  );
+}
 
-- stage: BuildWeb
-  dependsOn: Test
-  jobs:
-  - job: BuildWebApp
-    steps:
-    - task: FlutterInstall@0
-      displayName: 'Install Flutter'
-      inputs:
-        channel: $(flutterChannel)
-        version: $(flutterVersion)
-    
-    - script: flutter pub get
-      displayName: 'Flutter pub get'
-    
-    - script: flutter build web --release
-      displayName: 'Build web app'
-    
-    - task: PublishBuildArtifacts@1
-      inputs:
-        pathtoPublish: 'build/web'
-        artifactName: 'web-release'
+// A custom observer to log provider state changes during development
+class RiverpodLogger extends ProviderObserver {
+  @override
+  void didUpdateProvider(
+    ProviderBase<Object?> provider,
+    Object? previousValue,
+    Object? newValue,
+    ProviderContainer container,
+  ) {
+    if (previousValue != newValue) {
+      AppLogger.debug(
+        'Provider ${provider.name ?? provider.runtimeType} updated:\n'
+        'prev: $previousValue\n'
+        'new: $newValue',
+      );
+    }
+  }
 
-- stage: Deploy
-  dependsOn: BuildWeb
-  condition: succeeded()
-  jobs:
-  - job: DeployToProduction
-    steps:
-    - download: current
-      artifact: 'web-release'
-      displayName: 'Download web build artifacts'
-    
-    # Example Azure Static Web App deployment
-    - task: AzureStaticWebApp@0
-      displayName: 'Deploy to Azure Static Web App'
-      inputs:
-        app_location: '$(Pipeline.Workspace)/web-release'
-        azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APP_TOKEN)
-        # Set skip_app_build to true as we're providing the already built app
-        skip_app_build: true
+  @override
+  void didAddProvider(
+    ProviderBase<Object?> provider, 
+    Object? value, 
+    ProviderContainer container,
+  ) {
+    AppLogger.debug(
+      'Provider ${provider.name ?? provider.runtimeType} added with value: $value',
+    );
+  }
+
+  @override
+  void didDisposeProvider(
+    ProviderBase<Object?> provider, 
+    ProviderContainer container,
+  ) {
+    AppLogger.debug(
+      'Provider ${provider.name ?? provider.runtimeType} disposed',
+    );
+  }
+}
