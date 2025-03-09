@@ -1,0 +1,92 @@
+# Add to your .vscode/settings.json
+{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll": true,
+    "source.organizeImports": true
+  },
+  "dart.lineLength": 100,
+  "dart.previewFlutterUiGuides": true,
+  "dart.previewFlutterUiGuidesCustomTracking": true,
+  "dart.showTodos": true,
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.rulers": [100],
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": false
+  }
+}
+
+# CI Script (place in .github/workflows/lint.yml)
+name: Lint
+
+on:
+  push:
+    branches: [ main, staging, dev ]
+  pull_request:
+    branches: [ main, staging, dev ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.x'
+          channel: 'stable'
+      - run: flutter pub get
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Custom lint (Riverpod)
+        run: flutter pub run custom_lint
+
+# Pre-commit hook setup (place in .githooks/pre-commit)
+#!/bin/sh
+# Flutter lint pre-commit hook
+
+echo "Running Flutter analyzer..."
+output=$(flutter analyze --no-fatal-infos)
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "$output"
+  echo "❌ Flutter analyzer found issues. Please fix them before committing."
+  exit 1
+fi
+
+echo "Running Dart formatter check..."
+output=$(dart format --output=none --set-exit-if-changed .)
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "$output"
+  echo "❌ Dart formatter found issues. Please run 'dart format .' to fix them."
+  exit 1
+fi
+
+echo "Running custom lint..."
+output=$(flutter pub run custom_lint)
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "$output"
+  echo "❌ Custom lint found issues. Please fix them before committing."
+  exit 1
+fi
+
+echo "✅ Pre-commit checks passed!"
+exit 0
+
+# Setup instructions for pre-commit hook (add to README.md)
+# To activate pre-commit hooks, run:
+# ```
+# git config core.hooksPath .githooks
+# chmod +x .githooks/pre-commit
+# ```
