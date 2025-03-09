@@ -1,35 +1,99 @@
-#!/bin/sh
-# Flutter lint pre-commit hook
+# azure-pipelines-main.yml
+trigger:
+  branches:
+    include:
+      - main
 
-echo "Running Flutter analyzer..."
-output=$(flutter analyze --no-fatal-infos)
-status=$?
+pool:
+  vmImage: 'ubuntu-latest'
 
-if [ $status -ne 0 ]; then
-  echo "$output"
-  echo "❌ Flutter analyzer found issues. Please fix them before committing."
-  exit 1
-fi
+variables:
+  flutterVersion: '3.16.x'
+  flutterChannel: 'stable'
 
-echo "Running Dart formatter check..."
-output=$(dart format --output=none --set-exit-if-changed .)
-status=$?
+stages:
+- stage: Lint
+  jobs:
+  - job: Lint
+    steps:
+    - task: FlutterInstall@0
+      displayName: 'Install Flutter'
+      inputs:
+        channel: $(flutterChannel)
+        version: $(flutterVersion)
+    
+    - script: flutter pub get
+      displayName: 'Flutter pub get'
+    
+    - script: flutter analyze --no-fatal-infos
+      displayName: 'Analyze code'
+    
+    - script: dart format --output=none --set-exit-if-changed .
+      displayName: 'Format check'
+    
+    - script: flutter pub run custom_lint
+      displayName: 'Run custom lint (Riverpod)'
 
-if [ $status -ne 0 ]; then
-  echo "$output"
-  echo "❌ Dart formatter found issues. Please run 'dart format .' to fix them."
-  exit 1
-fi
+- stage: Test
+  dependsOn: Lint
+  jobs:
+  - job: RunTests
+    steps:
+    - task: FlutterInstall@0
+      displayName: 'Install Flutter'
+      inputs:
+        channel: $(flutterChannel)
+        version: $(flutterVersion)
+    
+    - script: flutter pub get
+      displayName: 'Flutter pub get'
+    
+    - script: flutter test --coverage
+      displayName: 'Run unit tests with coverage'
+    
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: 'coverage/lcov.info'
+        pathToSources: 'lib/'
 
-echo "Running custom lint..."
-output=$(flutter pub run custom_lint)
-status=$?
+- stage: BuildWeb
+  dependsOn: Test
+  jobs:
+  - job: BuildWebApp
+    steps:
+    - task: FlutterInstall@0
+      displayName: 'Install Flutter'
+      inputs:
+        channel: $(flutterChannel)
+        version: $(flutterVersion)
+    
+    - script: flutter pub get
+      displayName: 'Flutter pub get'
+    
+    - script: flutter build web --release
+      displayName: 'Build web app'
+    
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathtoPublish: 'build/web'
+        artifactName: 'web-release'
 
-if [ $status -ne 0 ]; then
-  echo "$output"
-  echo "❌ Custom lint found issues. Please fix them before committing."
-  exit 1
-fi
-
-echo "✅ Pre-commit checks passed!"
-exit 0
+- stage: Deploy
+  dependsOn: BuildWeb
+  condition: succeeded()
+  jobs:
+  - job: DeployToProduction
+    steps:
+    - download: current
+      artifact: 'web-release'
+      displayName: 'Download web build artifacts'
+    
+    # Example Azure Static Web App deployment
+    - task: AzureStaticWebApp@0
+      displayName: 'Deploy to Azure Static Web App'
+      inputs:
+        app_location: '$(Pipeline.Workspace)/web-release'
+        azure_static_web_apps_api_token: $(AZURE_STATIC_WEB_APP_TOKEN)
+        # Set skip_app_build to true as we're providing the already built app
+        skip_app_build: true
