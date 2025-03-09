@@ -1,5 +1,5 @@
-name: feature
-description: Feature brick to create a single feature structure
+name: application_layer
+description: A new brick created with the Mason CLI.
 
 # The following defines the brick repository url.
 # Uncomment and update the following line before publishing the brick.
@@ -26,11 +26,6 @@ environment:
 #  * a list of values (enums only)
 #  * an optional separator (list only)
 vars:
-  name:
-    type: string
-    description: Your feature name
-    default: example
-    prompt: Name?
   author_name:
     type: string
     description: Your name
