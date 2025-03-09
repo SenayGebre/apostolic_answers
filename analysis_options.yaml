@@ -1,123 +1,158 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
-#
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
-
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
-# include: package:flutter_lints/flutter.yaml
+include: package:flutter_lints/flutter.yaml
 
 analyzer:
   plugins:
     - custom_lint
   exclude:
-    - build/**
-    - test/**
-    - lib/generated_plugin_registrant.dart
-    - lib/**/*.g.dart
-    - lib/**/*.freezed.dart
-  errors: 
-    avoid_print: error
-    prefer_single_quotes: error
-    directives_ordering: error
-    prefer_const_constructors: error
-
-linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
-  rules:
-    # avoid_print: true  # Uncomment to disable the `avoid_print` rule
-    prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
-
-    # General Best Practices
-    avoid_print: true # Disallow print statements; use proper logging
-    avoid_redundant_argument_values: true # Avoid passing default arguments unnecessarily
-    avoid_classes_with_only_static_members: true # Prevent classes with only static members
-    avoid_empty_else: true # Warn about empty else blocks
-    avoid_escaping_inner_quotes: true # Avoid unnecessary escaping of quotes
-    avoid_field_initializers_in_const_classes: true # Avoid field initializers in const classes
-    avoid_function_literals_in_foreach_calls: true # Use method references instead of function literals
-    avoid_null_checks_in_equality_operators: true # Prevent null checks in equality operators
-    avoid_positional_boolean_parameters: true # Use named parameters for readability
-    lines_longer_than_80_chars: true
-    directives_ordering: true
-    prefer_expression_function_bodies: true
-    unnecessary_lambdas: true
-    parameter_assignments: true
-    avoid_unnecessary_containers: true
-    avoid_web_libraries_in_flutter: true
-    no_logic_in_create_state: true
-    sized_box_for_whitespace: true
-    sort_child_properties_last: true
-    use_build_context_synchronously: true
-    use_full_hex_values_for_flutter_colors: true
-    use_key_in_widget_constructors: true
-
-    # Style and Formatting
-    prefer_const_constructors: true # Use const constructors when possible
-    prefer_const_constructors_in_immutables: true # Const for immutable classes
-    prefer_const_declarations: true # Use const for variables that don't change
-    prefer_final_fields: true # Prefer final for class fields
-    prefer_final_in_for_each: true # Use final in for-each variables
-    sort_constructors_first: true # Constructors should appear first in classes
-    prefer_relative_imports: true # Use relative imports instead of package imports within a module
-
-    # Null Safety and Type Checking
-    always_specify_types: true # Explicitly specify types for variables, functions, etc.
-    annotate_overrides: true # Always annotate overridden methods
-    prefer_void_to_null: true # Use void instead of null in return types
-
-    # Code Optimization
-    unnecessary_null_checks: true # Remove unnecessary null checks
-    prefer_iterable_whereType: true # Prefer whereType for filtering by type
-    unnecessary_this: true # Avoid using `this.` when it's unnecessary
-    prefer_is_empty: true # Use `isEmpty` instead of `length == 0`
-    prefer_is_not_empty: true # Use `isNotEmpty` instead of `length > 0`
-
-    # Error Prevention
-    avoid_dynamic_calls: true # Prevent dynamic calls
-    avoid_returning_null_for_future: true # Avoid returning null in Futures
-    avoid_setters_without_getters: true # Avoid having setters without corresponding getters
-    always_declare_return_types: true # Explicit return types for all methods
-    no_duplicate_case_values: true # Disallow duplicate case values in switch statements
-
-    # Clean Architecture Rules
-    avoid_catches_without_on_clauses: true # Catch specific exceptions
-    type_annotate_public_apis: true # Type annotations for all public APIs
-
-    # Async and Streams
-    unawaited_futures: true # Warn on unawaited Futures
-    avoid_void_async: true # Avoid async functions that return void
-    use_rethrow_when_possible: true # Use rethrow instead of manually throwing the exception
-    prefer_final_parameters: true # Use final for parameters in methods
-
-    # Dependency Management
-    prefer_const_literals_to_create_immutables: true # Use const for immutable collections
-    avoid_relative_lib_imports: true # Avoid relative imports from lib/ folder
-
-    # Documentation
-    comment_references: true # Use proper references in comments
-  
-
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+  errors:
+    invalid_annotation_target: ignore
+  language:
+    strict-casts: true
+    strict-raw-types: true
 
 custom_lint:
   rules:
-    # Enable one rule
-    - provider_parameters
-    # Disable another
-    - missing_provider_scope: true
-    
+    - riverpod_lint:
+        all: true
 
+linter:
+  rules:
+    # Error rules
+    always_use_package_imports: true
+    avoid_dynamic_calls: true
+    avoid_empty_else: true
+    avoid_print: true
+    avoid_relative_lib_imports: true
+    avoid_returning_null_for_future: true
+    avoid_slow_async_io: true
+    avoid_type_to_string: true
+    avoid_types_as_parameter_names: true
+    avoid_web_libraries_in_flutter: true
+    cancel_subscriptions: true
+    close_sinks: true
+    comment_references: true
+    empty_statements: true
+    hash_and_equals: true
+    no_duplicate_case_values: true
+    no_logic_in_create_state: true
+    prefer_void_to_null: true
+    throw_in_finally: true
+    unnecessary_statements: true
+    unrelated_type_equality_checks: true
+    unsafe_html: true
+    use_build_context_synchronously: true
+    use_key_in_widget_constructors: true
+    valid_regexps: true
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+    # Style rules
+    always_declare_return_types: true
+    avoid_bool_literals_in_conditional_expressions: true
+    avoid_catches_without_on_clauses: true
+    avoid_catching_errors: true
+    avoid_function_literals_in_foreach_calls: true
+    avoid_implementing_value_types: true
+    avoid_multiple_declarations_per_line: true
+    avoid_private_typedef_functions: true
+    avoid_redundant_argument_values: true
+    avoid_returning_null: true
+    avoid_single_cascade_in_expression_statements: true
+    avoid_unnecessary_containers: true
+    avoid_unused_constructor_parameters: true
+    cascade_invocations: true
+    directives_ordering: true
+    empty_catches: true
+    eol_at_end_of_file: true
+    exhaustive_cases: true
+    file_names: true
+    leading_newlines_in_multiline_strings: true
+    library_private_types_in_public_api: true
+    no_runtimeType_toString: true
+    null_check_on_nullable_type_parameter: true
+    omit_local_variable_types: true
+    only_throw_errors: true
+    package_api_docs: true
+    prefer_asserts_in_initializer_lists: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_declarations: true
+    prefer_expression_function_bodies: true
+    prefer_final_in_for_each: true
+    prefer_final_locals: true
+    prefer_foreach: true
+    prefer_if_elements_to_conditional_expressions: true
+    prefer_initializing_formals: true
+    prefer_int_literals: true
+    prefer_interpolation_to_compose_strings: true
+    prefer_null_aware_method_calls: true
+    prefer_null_aware_operators: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sized_box_for_whitespace: true
+    sort_constructors_first: true
+    sort_unnamed_constructors_first: true
+    tighten_type_of_initializing_formals: true
+    type_annotate_public_apis: true
+    unawaited_futures: true
+    unnecessary_await_in_return: true
+    unnecessary_brace_in_string_interps: true
+    unnecessary_const: true
+    unnecessary_constructor_name: true
+    unnecessary_getters_setters: true
+    unnecessary_lambdas: true
+    unnecessary_late: true
+    unnecessary_new: true
+    unnecessary_null_aware_assignments: true
+    unnecessary_null_checks: true
+    unnecessary_nullable_for_final_variable_declarations: true
+    unnecessary_parenthesis: true
+    unnecessary_raw_strings: true
+    unnecessary_string_escapes: true
+    unnecessary_string_interpolations: true
+    unnecessary_this: true
+    use_decorated_box: true
+    use_if_null_to_convert_nulls_to_bools: true
+    use_is_even_rather_than_modulo: true
+    use_late_for_private_fields_and_variables: true
+    use_named_constants: true
+    use_raw_strings: true
+    use_rethrow_when_possible: true
+    use_setters_to_change_properties: true
+    use_string_buffers: true
+    use_to_and_as_if_applicable: true
+
+dart_code_metrics:
+  anti-patterns:
+    - long-method
+    - long-parameter-list
+  metrics:
+    cyclomatic-complexity: 20
+    maximum-nesting-level: 5
+    number-of-parameters: 4
+    source-lines-of-code: 50
+  metrics-exclude:
+    - test/**
+  rules:
+    - avoid-global-state
+    - avoid-ignoring-return-values
+    - avoid-missing-enum-constant-in-map
+    - avoid-non-null-assertion
+    - avoid-unnecessary-type-assertions
+    - avoid-unnecessary-type-casts
+    - avoid-unrelated-type-assertions
+    - avoid-unused-parameters
+    - newline-before-return
+    - no-boolean-literal-compare
+    - no-empty-block
+    - prefer-conditional-expressions
+    - prefer-first
+    - prefer-last
+    - member-ordering:
+        order:
+          - constructors
+          - public-fields
+          - private-fields
+          - public-methods
+          - private-methods
