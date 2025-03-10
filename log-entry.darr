@@ -1,0 +1,35 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:intl/intl.dart';
+
+part 'log_entry.freezed.dart';
+part 'log_entry.g.dart';
+
+@freezed
+class LogEntry with _$LogEntry {
+  const LogEntry._();
+
+  const factory LogEntry({
+    required DateTime timestamp,
+    required String level,
+    required String message,
+    String? context,
+    String? error,
+    String? stackTrace,
+    Map<String, dynamic>? data,
+  }) = _LogEntry;
+
+  factory LogEntry.fromJson(Map<String, dynamic> json) => _$LogEntryFromJson(json);
+
+  // Custom toJson implementation to format timestamp
+  @override
+  Map<String, dynamic> toJson() {
+    final baseJson = _$LogEntryToJson(this);
+    baseJson['timestamp'] = DateFormat('yyyy-MM-dd HH:mm:ss.SSS').format(timestamp);
+    return baseJson;
+  }
+
+  // Helper method to create string representation
+  String toLogString() {
+    return '${DateFormat('HH:mm:ss.SSS').format(timestamp)} | $level | ${context ?? 'App'}: $message';
+  }
+}
